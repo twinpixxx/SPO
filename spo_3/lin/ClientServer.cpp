@@ -1,67 +1,70 @@
-#include <iostream>
-#include <unistd.h>
-#include <string>
-#include <signal.h>
 #include <sys/types.h>
-#include <semaphore.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <stdio.h>
+#include <sys/wait.h>  
+#include <unistd.h>    
+#include <string.h>  
+#include <stdlib.h>
 
+#include <stdio.h>
+#include <iostream>
+using namespace std;
 
-int main()
-{
-    int filedes[2];
+#define SHMSIZE 20
+#define UNIQENUMBER 2009
+void client(char*, int);
 
-    pipe(filedes);
-    pid_t pid;
-    sem_t* semaphore = sem_open("/semaphore", O_CREAT, O_RDWR | S_IRWXU, 0);
+int main(int argc, char* argv[]) {
 
+	char* shm;
+	key_t key;
+	int pid;
+	int choice;
+	key = shmget(UNIQENUMBER, SHMSIZE, 0666 | IPC_CREAT);
+	if ((shm = (char*)shmat(key, (void*)0, 0)) == (char*)(-1)) {
+		printf("Can't attach shared memory\n");
+		exit(-1); 
+	}
+	char* s = shm;
+	while (true) {
+		fflush(stdin);
+		string str;
+		printf("Enter string [PID: %d]: ", getpid());
+		getline(cin, str); 
+		strcpy(s, str.c_str());
+		pid = fork();
+		switch (pid) {
+		    case 0: {
+		        client(shm, key);
+		        printf("Exit? 1/0\n");
+		        do {
+		            fflush(stdin);
+		            cin >> choice;
+		        } while (choice < 0 || choice > 1);
+		        if (choice == 1) {
+		            kill(pid, SIGTERM);
+		            exit(0);
+		        }
+		        kill(getpid(), SIGTERM);
+		        break;
+		    } case -1: { 
+		        perror("ERROR");
+    		    exit(0);
+		    } default: {
+		        wait(NULL); 
 
-    switch(pid = fork())
-    { 
-        case 0:
-        {
-            char message[80] = {};
-            while(true)
-            {
-                read(filedes[0], message, 80);
-                std::cout << "client: " << message << std::endl;
-                for(size_t i = 0; i < 80; i++)
-                    message[i] = '\0';
-                sem_post(semaphore);
-            }
-            break;
-        }
-        case -1:
-        {
-            std::cout << "error" << std::endl;
-            return 1;
-        }
-       
-        default:
-        {
-            std::string message;
-            while(true)
-            {
-                std::cout << "server: " ;
-                do
-                {
-                    getline(std::cin, message);
-                } while (message.empty());
-                if(message == "return" && message.length() == 6)
-                {
-                    sem_unlink("/semaphore");
-                    kill(getpid(), 0);
-                    exit(0);
-                }
-                else
-                {
-                    write(filedes[1], message.c_str(), 80);
-                    sem_wait(semaphore);
-                }
-                
-            }
-            break;
-        }
-    }
-
-    return 0;
+		        break;
+		    }
+	    }
+	}
+	return 0;
 }
+
+void client(char* sharedMemory, int key) {
+	key = shmget(UNIQENUMBER, SHMSIZE, 0);       
+	sharedMemory = (char*)shmat(key, (void*)0, 0);
+	printf("Child wrote [PID: %d][PPID: %d]: %s\n", getpid(), getppid(), sharedMemory);  
+	shmdt(sharedMemory);            
+}
+
