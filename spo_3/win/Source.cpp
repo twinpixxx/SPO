@@ -28,7 +28,7 @@ void Client() {
 			return;
 		}
 
-		cout << "Client got: " << stringRepresentation << endl;
+		cout << stringRepresentation << endl;
 
 		ReleaseSemaphore(work, 1, nullptr);
 	}
@@ -74,8 +74,19 @@ void Server(char* input) {
 	while (true) {
 		if (readyForInput) {
 			currentPosition = 0;
-			cout << "Server: Please, enter the string" << endl;
 			getline(cin, buffString);
+			if (buffString == "return")
+			{
+				ReleaseSemaphore(close, 1, nullptr);
+				ReleaseSemaphore(work, 1, nullptr);
+				UnmapViewOfFile(memoryMap);
+				CloseHandle(pi.hThread);
+				CloseHandle(pi.hProcess);
+				CloseHandle(close);
+				CloseHandle(work);
+				CloseHandle(fileProjection);
+				return;
+			}
 			readyForInput = false;
 		}
 
@@ -99,11 +110,11 @@ void Server(char* input) {
 
 		if (buffString.empty()) {
 			readyForInput = true;
-			cout << "\nExit (0)" << endl;
-			if (cin.get() == '0') {
-				ReleaseSemaphore(close, 1, nullptr);	//Увеличивает количество указанного объекта семафора на определенное значение.
+			cout << "\nExit?" << endl;
+			if (cin.get() == 'Yes') {
+				ReleaseSemaphore(close, 1, nullptr);
 				ReleaseSemaphore(work, 1, nullptr);
-				UnmapViewOfFile(memoryMap);			//Отключает сопоставленный вид файла из адресного пространства вызывающего процесса.
+				UnmapViewOfFile(memoryMap);
 				CloseHandle(pi.hThread);
 				CloseHandle(pi.hProcess);
 				CloseHandle(close);
