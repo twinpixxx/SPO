@@ -12,7 +12,7 @@ size_t id = 0;
 DWORD WINAPI print(LPVOID LParam) {
 	while (id < MAX_QTY_OF_THREADS) {
 		EnterCriticalSection(&criticalSection);
-		cout << "Work thread " << GetCurrentThreadId() << endl;
+		cout << "Work thread " << id << ": " << GetCurrentThreadId() << endl;
 		LeaveCriticalSection(&criticalSection);
 		WaitForSingleObject(GetCurrentThread(), 1500);
 	}
@@ -25,7 +25,7 @@ int main() {
 	HANDLE threads[MAX_QTY_OF_THREADS];
 	cout << "+ - Create Thread" << endl
 		 << "- - Kill Thread " << endl
-		 << "q - Exit" << endl;
+		 << "x - Exit" << endl;
 	while (true) {
 		userChoice = _getch();
 		if (userChoice == 'x') {
